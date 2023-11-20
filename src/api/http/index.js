@@ -17,6 +17,9 @@ const getSessionToken = async () => {
 };
 
 export const httpService = ({ path, method, useToken = true, data = {} }) => {
+    console.log('%c@@@@@CALLING httpService@@@@@@@', 'color:green');
+    console.log({ path, method, useToken, data });
+
     return new Promise(async (resolve, reject) => {
         if (!path || !method) return;
 
@@ -47,14 +50,13 @@ export const httpService = ({ path, method, useToken = true, data = {} }) => {
             await fetch(fetchPath, fetchOptions)
                 .then(async (response) => {
                     if (!response.ok) {
-                        response = response.json();
+                        response = await response.json();
                         throw new Error(response.message);
                     } else if (response.status !== 204) {
-                        response = response.json();
+                        response = await response.json();
+
                         return resolve(response);
                     }
-
-                    return {};
                 })
                 .then((data) => {
                     return resolve(data);

@@ -31,7 +31,7 @@ const handlers = {
         };
     },
     SIGN_IN: (state, action) => {
-        const { user } = action.payload;
+        const user = action.payload;
 
         return {
             ...state,
@@ -115,7 +115,10 @@ export const AuthProvider = (props) => {
         async (email, password) => {
             const signInData = await authApi.signIn({ email, password });
 
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(signInData));
+            await globalThis.localStorage.setItem(
+                STORAGE_KEY,
+                JSON.stringify(signInData),
+            );
 
             dispatch({
                 type: ActionType.SIGN_IN,

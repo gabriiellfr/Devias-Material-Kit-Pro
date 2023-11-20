@@ -42,6 +42,7 @@ const useRecipients = () => {
 export const ChatComposer = (props) => {
     const dispatch = useDispatch();
     const router = useRouter();
+
     const { user } = useAuth();
     const { onRecipientAdd, onRecipientRemove, recipients } = useRecipients();
 

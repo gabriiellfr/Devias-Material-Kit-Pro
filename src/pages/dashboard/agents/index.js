@@ -77,7 +77,7 @@ const useAgents = ({ user }) => {
     );
 
     useEffect(() => {
-        getAgents({ user });
+        if (user) getAgents({ user });
     }, [user]);
 
     return state;

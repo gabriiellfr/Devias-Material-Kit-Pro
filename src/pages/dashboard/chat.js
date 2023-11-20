@@ -45,7 +45,7 @@ const useThreads = ({ user }) => {
 
     const getThreads = useCallback(
         ({ user }) => {
-            dispatch(thunks.getThreads({ user }));
+            if (user) dispatch(thunks.getThreads({ user }));
         },
         [dispatch],
     );

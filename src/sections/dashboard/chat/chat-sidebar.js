@@ -17,9 +17,9 @@ import {
 } from '@mui/material';
 import { agentsApi } from '../../../api/agents';
 import { Scrollbar } from '../../../components/scrollbar';
-import { useMockedUser } from '../../../hooks/use-mocked-user';
+import { thunks } from '../../../thunks/chat';
 import { paths } from '../../../paths';
-import { useSelector } from '../../../store';
+import { useDispatch, useSelector } from '../../../store';
 import { ChatSidebarSearch } from './chat-sidebar-search';
 import { ChatThreadItem } from './chat-thread-item';
 import { useAuth } from '../../../hooks/use-auth';
@@ -60,6 +60,7 @@ export const ChatSidebar = (props) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
+    const dispatch = useDispatch();
 
     const handleCompose = useCallback(() => {
         router.push(paths.dashboard.chat + '?compose=true');
@@ -97,12 +98,18 @@ export const ChatSidebar = (props) => {
 
     const handleSearchSelect = useCallback(
         (contact) => {
-            const threadKey = contact.id;
+            const threadId = contact.id;
 
             setSearchFocused(false);
             setSearchQuery('');
 
-            router.push(paths.dashboard.chat + `?threadKey=${threadKey}`);
+            dispatch(
+                thunks.setCurrentThread({
+                    threadId,
+                }),
+            );
+
+            router.push(paths.dashboard.chat + `?compose=true&contact=true`);
         },
         [router],
     );

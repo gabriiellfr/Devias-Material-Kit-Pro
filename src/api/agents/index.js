@@ -65,7 +65,7 @@ class AgentsApi {
             throw new Error('User or agent data not found');
 
         try {
-            const httpOptions = this.createHttpOptions(
+            const httpOptions = createHttpOptions(
                 'agents/updateAgentById',
                 user.id,
                 { agentData },
@@ -80,7 +80,7 @@ class AgentsApi {
         if (!user) throw new Error('User not found');
 
         try {
-            const httpOptions = this.createHttpOptions(
+            const httpOptions = createHttpOptions(
                 'agents/getAgentsCopyAllowed',
                 user.id,
             );
@@ -97,7 +97,7 @@ class AgentsApi {
         if (!user) throw new Error('User not found');
 
         try {
-            const httpOptions = this.createHttpOptions(
+            const httpOptions = createHttpOptions(
                 'agents/getAgentsByName',
                 user.id,
                 { name },

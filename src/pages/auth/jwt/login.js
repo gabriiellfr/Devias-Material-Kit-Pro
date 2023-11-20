@@ -1,3 +1,4 @@
+/* eslint-disable react/jsx-max-props-per-line */
 import Head from 'next/head';
 import { useRouter, useSearchParams } from 'next/navigation';
 import NextLink from 'next/link';
@@ -62,8 +63,6 @@ const Page = () => {
 
                 if (isMounted()) router.push(returnTo || paths.dashboard.index);
             } catch (err) {
-                console.error(err);
-
                 if (isMounted()) {
                     helpers.setStatus({ success: false });
                     helpers.setErrors({ submit: err.message });

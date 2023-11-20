@@ -14,7 +14,7 @@ class AuthApi {
         try {
             return await httpService(httpOptions);
         } catch (err) {
-            throw new Error(`Error signing in: ${err.message}`);
+            throw new Error(`Error signing in: ${err}`);
         }
     }
 

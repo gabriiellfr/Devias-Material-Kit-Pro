@@ -1,7 +1,8 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react/jsx-max-props-per-line */
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
+import { useRouter, useSearchParams } from 'next/navigation';
 import SearchMdIcon from '@untitled-ui/icons-react/build/esm/SearchMd';
 import {
     Avatar,
@@ -23,6 +24,20 @@ import {
 import { agentsApi } from '../../../api/agents';
 import { Scrollbar } from '../../../components/scrollbar';
 import { useAuth } from '../../../hooks/use-auth';
+import { useSelector } from '../../../store';
+import { chatApi } from '../../../api/chat';
+import { paths } from '../../../paths';
+
+const useCurrentThreadId = () => {
+    return useSelector((state) => state.chat.currentThreadId);
+};
+
+const useRouteParams = () => {
+    const searchParams = useSearchParams();
+    const isContactRoute = searchParams.get('contact') === 'true';
+
+    return isContactRoute;
+};
 
 export const ChatComposerRecipients = (props) => {
     const {
@@ -38,6 +53,39 @@ export const ChatComposerRecipients = (props) => {
     const [searchResults, setSearchResults] = useState([]);
 
     const { user } = useAuth();
+    const router = useRouter();
+
+    const contact = useRouteParams();
+    const currentThreadId = useCurrentThreadId();
+
+    useEffect(() => {
+        if (user && contact && currentThreadId) {
+            const fetchContact = async () => {
+                try {
+                    const threadId = await chatApi.getThreadByParticipants({
+                        user,
+                        contactId: currentThreadId,
+                    });
+
+                    if (threadId)
+                        router.push(
+                            paths.dashboard.chat + `?threadKey=${threadId}`,
+                        );
+
+                    const agent = await agentsApi.getAgentById({
+                        user,
+                        agentId: currentThreadId,
+                    });
+
+                    if (agent) await onRecipientAdd?.(agent);
+                } catch (error) {
+                    console.error('Failed to fetch contact composer:', error);
+                }
+            };
+
+            fetchContact();
+        }
+    }, [user, contact, currentThreadId]);
 
     const showSearchResults = !!(searchFocused && searchQuery);
     const hasSearchResults = searchResults.length > 0;

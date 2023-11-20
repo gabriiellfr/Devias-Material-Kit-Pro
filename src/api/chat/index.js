@@ -70,16 +70,25 @@ class ChatApi {
         }
     }
 
+    async getThreadByParticipants({ user, contactId }) {
+        try {
+            const httpOptions = createHttpOptions(
+                'chats/getChatByParticipants',
+                user.id,
+                { contactId },
+            );
+            const chatData = await httpService(httpOptions);
+
+            return chatData?.id || null;
+        } catch (error) {
+            throw new Error(`Error fetching chats: ${error}`);
+        }
+    }
+
     async getParticipants({ user, threadKey }) {
         try {
-            console.log('participants user', user, 'threadKey', threadKey);
-
             let thread = await this.getThread({ user, threadKey });
-            console.log('participants thread', thread);
-
             let participants = [mapUserToParticipant(user)];
-
-            console.log('participants participants', participants);
 
             const otherParticipants = await Promise.all(
                 thread.participantIds

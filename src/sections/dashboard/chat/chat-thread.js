@@ -6,7 +6,6 @@ import PropTypes from 'prop-types';
 import { Box, Divider, Stack } from '@mui/material';
 import { chatApi } from '../../../api/chat';
 import { Scrollbar } from '../../../components/scrollbar';
-import { useMockedUser } from '../../../hooks/use-mocked-user';
 import { paths } from '../../../paths';
 import { useDispatch, useSelector } from '../../../store';
 import { thunks } from '../../../thunks/chat';
@@ -38,7 +37,7 @@ const useParticipants = ({ user, threadKey }) => {
 
     useEffect(
         () => {
-            getParticipants({ user, threadKey });
+            if (user) getParticipants({ user, threadKey });
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [threadKey],
@@ -146,7 +145,7 @@ export const ChatThread = (props) => {
     const participants = useParticipants({ user, threadKey });
     const { messagesRef } = useMessagesScroll(thread);
 
-    const { socket } = useContext(SocketContext);
+    const { socket } = useSocket();
 
     const handleSend = useCallback(
         async (body) => {
