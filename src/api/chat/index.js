@@ -1,271 +1,163 @@
 import { createResourceId } from '../../utils/create-resource-id';
-import { deepCopy } from '../../utils/deep-copy';
-import { contacts, threads } from './data';
+import { httpService } from '../http';
+import { agentsApi } from '../agents';
 
-// On server get current identity (user) from the request
-const user = {
-  id: '5e86809283e28b96d2d38537',
-  avatar: '/assets/avatars/avatar-anika-visser.png',
-  name: 'Anika Visser'
+const expandChat = async (user, chat) => {
+    const participants = [mapUserToParticipant(user)];
+    const otherParticipants = await Promise.all(
+        chat.participantIds
+            .filter((member) => member !== user.id)
+            .map((member) => fetchParticipant(user, member)),
+    );
+    return {
+        ...chat,
+        participants: [...participants, ...otherParticipants],
+    };
 };
 
-const findThreadById = (threadId) => {
-  return threads.find((thread) => thread.id === threadId);
-};
-
-const findThreadByParticipantIds = (participantIds) => {
-  return threads.find((thread) => {
-    if (thread.participantIds.length !== participantIds.length) {
-      return false;
+const expandData = async (user, data) => {
+    if (Array.isArray(data)) {
+        return Promise.all(data.map((chat) => expandChat(user, chat)));
+    } else if (data) {
+        return expandChat(user, data);
     }
-
-    const foundParticipantIds = new Set();
-
-    thread.participantIds.forEach((participantId) => {
-      if (participantIds.includes(participantId)) {
-        foundParticipantIds.add(participantId);
-      }
-    });
-
-    return foundParticipantIds.size === participantIds.length;
-  });
 };
+
+const mapUserToParticipant = (user) => ({
+    id: user.id,
+    avatar: user.avatar,
+    name: user.name,
+});
+
+const fetchParticipant = async (user, memberId) => {
+    const chatMember = await agentsApi.getAgentById({
+        user,
+        agentId: memberId,
+    });
+    return mapUserToParticipant(chatMember);
+};
+
+const createHttpOptions = (path, userId, data = {}) => ({
+    path,
+    method: 'POST',
+    useToken: true,
+    data: { userId, ...data },
+});
 
 class ChatApi {
-  getContacts(request) {
-    const { query } = request;
+    async getThreads({ user }) {
+        try {
+            const httpOptions = createHttpOptions('chats/getAllChats', user.id);
+            const chatsData = await httpService(httpOptions);
 
-    return new Promise((resolve, reject) => {
-      try {
-        let foundContacts = contacts;
-
-        if (query) {
-          const cleanQuery = query.toLowerCase().trim();
-          foundContacts =
-            foundContacts.filter((contact) => (contact.name.toLowerCase().includes(cleanQuery)));
+            return expandData(user, chatsData);
+        } catch (error) {
+            throw new Error(`Error fetching chats: ${error}`);
         }
+    }
 
-        resolve(deepCopy(foundContacts));
-      } catch (err) {
-        console.error('[Chat Api]: ', err);
-        reject(new Error('Internal server error'));
-      }
-    });
-  }
-
-  getThreads(request) {
-
-    const expandedThreads = threads.map((thread) => {
-      const participants = [user];
-
-      contacts.forEach((contact) => {
-        if (thread.participantIds.includes(contact.id)) {
-          participants.push({
-            id: contact.id,
-            avatar: contact.avatar,
-            lastActivity: contact.lastActivity,
-            name: contact.name
-          });
+    async getThread({ user, threadKey }) {
+        try {
+            const httpOptions = createHttpOptions(
+                'chats/getChatById',
+                user.id,
+                { chatId: threadKey },
+            );
+            const chatData = await httpService(httpOptions);
+            return expandData(user, chatData);
+        } catch (error) {
+            throw new Error(`Error fetching chat: ${error}`);
         }
-      });
+    }
 
-      return {
-        ...thread,
-        participants
-      };
-    });
+    async getParticipants({ user, threadKey }) {
+        try {
+            console.log('participants user', user, 'threadKey', threadKey);
 
-    return Promise.resolve(deepCopy(expandedThreads));
-  }
+            let thread = await this.getThread({ user, threadKey });
+            console.log('participants thread', thread);
 
-  getThread(request) {
-    const { threadKey } = request;
+            let participants = [mapUserToParticipant(user)];
 
-    return new Promise((resolve, reject) => {
-      if (!threadKey) {
-        reject(new Error('Thread key is required'));
-        return;
-      }
+            console.log('participants participants', participants);
 
-      try {
-        let thread;
+            const otherParticipants = await Promise.all(
+                thread.participantIds
+                    .filter((member) => member !== user.id)
+                    .map((member) => fetchParticipant(user, member)),
+            );
 
-        // Thread key might be a contact ID
-        const contact = contacts.find((contact) => contact.id === threadKey);
-
-        if (contact) {
-          thread = findThreadByParticipantIds([user.id, contact.id]);
+            participants = [...participants, ...otherParticipants];
+            return participants;
+        } catch (err) {
+            throw new Error(`Error getting participants: ${err}`);
         }
+    }
 
-        // Thread key might be a thread ID
-        if (!thread) {
-          thread = findThreadById(threadKey);
-        }
+    async addMessage({ user, threadId, recipientIds, body }) {
+        try {
+            let thread;
 
-        // If reached this point and thread does not exist this could mean:
-        // b) The thread key is a contact ID, but no thread found
-        // a) The thread key is a thread ID and is invalid
-        if (!thread) {
-          return resolve(null);
-        }
-
-        const participants = [user];
-
-        contacts.forEach((contact) => {
-          if (thread.participantIds.includes(contact.id)) {
-            participants.push({
-              id: contact.id,
-              avatar: contact.avatar,
-              lastActivity: contact.lastActivity,
-              name: contact.name
-            });
-          }
-        });
-
-        const expandedThread = {
-          ...thread,
-          participants
-        };
-
-        resolve(deepCopy(expandedThread));
-      } catch (err) {
-        console.error('[Chat Api]: ', err);
-        reject(new Error('Internal server error'));
-      }
-    });
-  }
-
-  markThreadAsSeen(request) {
-    const { threadId } = request;
-
-    return new Promise((resolve, reject) => {
-      try {
-        const thread = threads.find((thread) => thread.id === threadId);
-
-        if (thread) {
-          thread.unreadCount = 0;
-        }
-
-        resolve(true);
-      } catch (err) {
-        console.error('[Chat Api]: ', err);
-        reject(new Error('Internal server error'));
-      }
-    });
-  }
-
-  getParticipants(request) {
-    const { threadKey } = request;
-
-    return new Promise((resolve, reject) => {
-      try {
-        let participants = [user];
-
-        // Thread key might be a thread ID
-        let thread = findThreadById(threadKey);
-
-        if (thread) {
-          contacts.forEach((contact) => {
-            if (thread.participantIds.includes(contact.id)) {
-              participants.push({
-                id: contact.id,
-                avatar: contact.avatar,
-                lastActivity: contact.lastActivity,
-                name: contact.name
-              });
+            if (threadId) {
+                const httpOptions = createHttpOptions(
+                    'chats/getChatById',
+                    user.id,
+                    { chatId: threadId },
+                );
+                thread = await httpService(httpOptions);
             }
-          });
-        } else {
-          const contact = contacts.find((contact) => contact.id === threadKey);
 
-          // If no contact found, the user is trying a shady route
-          if (!contact) {
-            reject(new Error('Unable to find the contact'));
-            return;
-          }
+            if (!thread) {
+                const participantIds = [user.id, ...(recipientIds || [])];
+                thread = {
+                    messages: [],
+                    participantIds,
+                    type: participantIds.length === 2 ? 'ONE_TO_ONE' : 'GROUP',
+                    createdBy: user.id,
+                };
 
-          participants.push({
-            id: contact.id,
-            avatar: contact.avatar,
-            lastActivity: contact.lastActivity,
-            name: contact.name
-          });
+                const createChatOptions = createHttpOptions(
+                    'chats/createChat',
+                    user.id,
+                    { chatData: thread },
+                );
+                thread = await httpService(createChatOptions);
+            }
+
+            const message = {
+                id: createResourceId(),
+                attachments: [],
+                body,
+                contentType: 'text',
+                createdAt: new Date().toISOString(),
+                authorId: user.id,
+            };
+
+            const saveMessageOptions = createHttpOptions(
+                'chats/saveMessage',
+                user.id,
+                { chatId: thread.id, messageData: message },
+            );
+            await httpService(saveMessageOptions);
+
+            return { threadId: thread.id, message };
+        } catch (err) {
+            throw new Error(`Error adding message: ${err}`);
         }
+    }
 
-        return resolve(participants);
-      } catch (err) {
-        console.error('[Chat Api]: ', err);
-        reject(new Error('Internal server error'));
-      }
-    });
-  }
-
-  addMessage(request) {
-    const { threadId, recipientIds, body } = request;
-
-    return new Promise((resolve, reject) => {
-      try {
-        if (!(threadId || recipientIds)) {
-          reject(new Error('Thread ID or recipient IDs has to be provided'));
-          return;
+    async markThreadAsSeen({ threadId }) {
+        try {
+            // Assuming an HTTP request is needed to mark the thread as seen
+            /* const httpOptions = createHttpOptions('chats/markAsSeen', user.id, {
+                threadId,
+            });
+            await httpService(httpOptions); */
+            return true;
+        } catch (err) {
+            throw new Error(`Error marking thread as seen: ${err}`);
         }
-
-        let thread;
-
-        // Try to find the thread
-        if (threadId) {
-          thread = findThreadById(threadId);
-
-          // If thread ID provided the thread has to exist.
-
-          if (!thread) {
-            reject(new Error('Invalid thread id'));
-            return;
-          }
-        } else {
-          const participantIds = [user.id, ...(recipientIds || [])];
-          thread = findThreadByParticipantIds(participantIds);
-        }
-
-        // If reached this point, thread will exist if thread ID provided
-        // For recipient Ids it may or may not exist. If it doesn't, create a new one.
-
-        if (!thread) {
-          const participantIds = [user.id, ...(recipientIds || [])];
-
-          thread = {
-            id: createResourceId(),
-            messages: [],
-            participantIds,
-            type: participantIds.length === 2 ? 'ONE_TO_ONE' : 'GROUP',
-            unreadCount: 0
-          };
-
-          // Add the new thread to the DB
-          threads.push(thread);
-        }
-
-        const message = {
-          id: createResourceId(),
-          attachments: [],
-          body,
-          contentType: 'text',
-          createdAt: new Date().getTime(),
-          authorId: user.id
-        };
-
-        thread.messages.push(message);
-
-        resolve({
-          threadId: thread.id,
-          message
-        });
-      } catch (err) {
-        console.error('[Chat Api]: ', err);
-        reject(new Error('Internal server error'));
-      }
-    });
-  }
+    }
 }
 
 export const chatApi = new ChatApi();

@@ -6,6 +6,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+
 import { RTL } from '../components/rtl';
 import { SplashScreen } from '../components/splash-screen';
 import { Toaster } from '../components/toaster';
@@ -13,6 +14,7 @@ import {
     SettingsConsumer,
     SettingsProvider,
 } from '../contexts/settings-context';
+import { SocketProvider } from '../contexts/socket-context';
 import { AuthConsumer, AuthProvider } from '../contexts/auth/jwt-context';
 import { gtmConfig } from '../config';
 import { gtm } from '../libs/gtm';
@@ -46,7 +48,7 @@ const App = (props) => {
     useAnalytics();
 
     const getLayout = Component.getLayout ?? ((page) => page);
-    console.log('-------------------');
+    console.log('--------STARTING-----------');
     return (
         <CacheProvider value={emotionCache}>
             <Head>
@@ -114,49 +116,12 @@ const App = (props) => {
                                                         ) : (
                                                             <>
                                                                 {getLayout(
-                                                                    <Component
-                                                                        {...pageProps}
-                                                                    />,
+                                                                    <SocketProvider>
+                                                                        <Component
+                                                                            {...pageProps}
+                                                                        />
+                                                                    </SocketProvider>,
                                                                 )}
-                                                                <SettingsButton
-                                                                    onClick={
-                                                                        settings.handleDrawerOpen
-                                                                    }
-                                                                />
-                                                                <SettingsDrawer
-                                                                    canReset={
-                                                                        settings.isCustom
-                                                                    }
-                                                                    onClose={
-                                                                        settings.handleDrawerClose
-                                                                    }
-                                                                    onReset={
-                                                                        settings.handleReset
-                                                                    }
-                                                                    onUpdate={
-                                                                        settings.handleUpdate
-                                                                    }
-                                                                    open={
-                                                                        settings.openDrawer
-                                                                    }
-                                                                    values={{
-                                                                        colorPreset:
-                                                                            settings.colorPreset,
-                                                                        contrast:
-                                                                            settings.contrast,
-                                                                        direction:
-                                                                            settings.direction,
-                                                                        paletteMode:
-                                                                            settings.paletteMode,
-                                                                        responsiveFontSizes:
-                                                                            settings.responsiveFontSizes,
-                                                                        stretch:
-                                                                            settings.stretch,
-                                                                        layout: settings.layout,
-                                                                        navColor:
-                                                                            settings.navColor,
-                                                                    }}
-                                                                />
                                                             </>
                                                         )}
                                                         <Toaster />
